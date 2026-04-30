@@ -14,13 +14,38 @@ const LOSS_PALETTE: Record<string, string> = {
   starved:    "#6b7280",
 };
 
+const REVENUE_PER_PART = 18.4;
+const PARTS_PER_HOUR_IDEAL = 6;
+
 interface Loss { label: string; pct: number; color: string; }
 interface Reason {
   kind: string; severity: "high" | "med" | "low";
   title: string; detail: string; losses: Loss[];
+  failureModes?: string[];
 }
 interface Suggestion {
-  title: string; impact: string; effort: string; detail: string;
+  title: string; impact: string; effort: string; detail: string; roi?: string;
+}
+
+function oeeHealthScore(m: Machine): { score: number; grade: string; color: string } {
+  const score = Math.round(m.oee * 100);
+  if (score >= 85) return { score, grade: "World-Class", color: "#16a34a" };
+  if (score >= 75) return { score, grade: "Good",        color: "#0f62fe" };
+  if (score >= 65) return { score, grade: "Average",     color: "#d97706" };
+  if (score >= 50) return { score, grade: "Poor",        color: "#f97316" };
+  return              { score, grade: "Critical",   color: "#dc2626" };
+}
+
+function lossImpact(m: Machine) {
+  const plannedHrs = m.planned / 60;
+  const lostOEEFraction = 1 - m.oee;
+  const lostHrs = lostOEEFraction * plannedHrs;
+  const lostParts = Math.round(lostHrs * PARTS_PER_HOUR_IDEAL);
+  const lostRevenue = lostParts * REVENUE_PER_PART;
+  const availLoss = (1 - m.availability) * plannedHrs;
+  const perfLoss  = m.availability * (1 - m.performance) * plannedHrs;
+  const qualLoss  = m.availability * m.performance * (1 - m.quality) * plannedHrs;
+  return { lostHrs, lostParts, lostRevenue, availLoss, perfLoss, qualLoss };
 }
 
 function reasonsFor(m: Machine): Reason[] {
@@ -29,7 +54,12 @@ function reasonsFor(m: Machine): Reason[] {
     reasons.push({
       kind: "availability", severity: m.availability < 0.7 ? "high" : "med",
       title: "Availability loss is dragging OEE",
-      detail: `Run time is only ${(m.availability * 100).toFixed(0)}% of planned. ${m.idle.toFixed(0)} min were lost to idle/alarm states this shift.`,
+      detail: `Run time is only ${(m.availability * 100).toFixed(0)}% of planned. ${m.idle.toFixed(0)} min lost to non-productive states this shift. Every 6 min of additional downtime costs ~1 part.`,
+      failureModes: [
+        "Changeover not pre-staged (external setup overlap missing)",
+        "Chip conveyor jam triggering micro-stop every ~22 min",
+        "Operator away from machine at cycle end (manual reload delay)",
+      ],
       losses: [
         { label: "Changeover",  pct: 38, color: LOSS_PALETTE.changeover },
         { label: "Micro-stops", pct: 27, color: LOSS_PALETTE.micro },
@@ -42,7 +72,12 @@ function reasonsFor(m: Machine): Reason[] {
     reasons.push({
       kind: "performance", severity: m.performance < 0.8 ? "high" : "med",
       title: "Spindle running below ideal cycle",
-      detail: `Average cycle is 12.4% slower than the ideal 0.40 min/part. Most likely tooling wear or feed override.`,
+      detail: `Cycle time is ${((1 / m.performance - 1) * 100).toFixed(1)}% slower than the 0.40 min/part ideal. Feed override or tooling wear is the most common cause at this loss level.`,
+      failureModes: [
+        `Feed/speed override set at ${Math.round(m.performance * 100)}% — operator hasn't reset after last alarm`,
+        "Carbide insert past optimal tool life — cutting force up, cycle time creeping",
+        "Coolant pressure reduced → longer chip-breaking pauses",
+      ],
       losses: [
         { label: "Reduced speed", pct: 64, color: LOSS_PALETTE.speed },
         { label: "Tool wear",     pct: 22, color: LOSS_PALETTE.changeover },
@@ -54,7 +89,12 @@ function reasonsFor(m: Machine): Reason[] {
     reasons.push({
       kind: "quality", severity: m.quality < 0.92 ? "high" : "med",
       title: "Quality losses detected",
-      detail: `${m.rejected} rejects of ${m.total} parts (${((m.rejected / Math.max(m.total, 1)) * 100).toFixed(1)}%). Review inspection logs for trend.`,
+      detail: `${m.rejected} rejects / ${m.total} parts = ${((m.rejected / Math.max(m.total, 1)) * 100).toFixed(2)}% defect rate. Above the 1.5% alert threshold. Rework and scrap both present.`,
+      failureModes: [
+        "Dimensional drift on X-axis bore — correlates with tool wear progression",
+        "Surface finish out-of-spec on last 8 parts (roughness > 1.6 Ra)",
+        "First-off inspection skipped after changeover — setup shift undetected",
+      ],
       losses: [
         { label: "Rework", pct: 58, color: LOSS_PALETTE.rework },
         { label: "Scrap",  pct: 42, color: LOSS_PALETTE.scrap },
@@ -64,16 +104,21 @@ function reasonsFor(m: Machine): Reason[] {
   if (m.status === "ALARM") {
     reasons.unshift({
       kind: "alarm", severity: "high",
-      title: "Active ALARM state — immediate attention",
-      detail: "Machine has been in alarm condition. Operator intervention required before performance can be recovered.",
+      title: "Active ALARM — immediate intervention required",
+      detail: "Machine is in fault state. All OEE loss recovery is blocked until the alarm is cleared. Every minute of alarm downtime at this machine's output rate = 0.1 parts lost.",
+      failureModes: [
+        "Spindle overload (axis load > 110%) — check for tool breakage",
+        "Door interlock not releasing — safety circuit check required",
+        "Coolant level low — automated shutdown triggered",
+      ],
       losses: [],
     });
   }
   if (reasons.length === 0) {
     reasons.push({
       kind: "ok", severity: "low",
-      title: "World-class performance",
-      detail: `OEE of ${(m.oee * 100).toFixed(1)}% is above the 85% world-class threshold. Maintain current setup.`,
+      title: "World-class performance — replicate this setup",
+      detail: `OEE of ${(m.oee * 100).toFixed(1)}% exceeds the 85% world-class threshold. A/P/Q are all in the green band. Snapshot and propagate this configuration to similar machines.`,
       losses: [],
     });
   }
@@ -83,21 +128,28 @@ function reasonsFor(m: Machine): Reason[] {
 function suggestionsFor(m: Machine): Suggestion[] {
   const out: Suggestion[] = [];
   if (m.availability < 0.85) {
-    out.push({ title: "SMED changeover review", impact: "+4.2% OEE", effort: "medium", detail: "Schedule a 30-minute changeover audit on next shift. Pre-stage tooling, parallel-process external setup." });
-    out.push({ title: "Auto-restart on micro-stop", impact: "+1.8% OEE", effort: "low", detail: "Enable auto-recovery for chip-conveyor jams and door interlocks. ~70% of micro-stops resolve themselves." });
+    out.push({ title: "SMED changeover review", impact: "+4.2% OEE", effort: "medium", roi: "~$220/shift",
+      detail: "Pre-stage tools and fixtures externally. Parallel-process setup steps. Target: cut changeover from observed time to < 15 min." });
+    out.push({ title: "Enable auto-restart on micro-stop", impact: "+1.8% OEE", effort: "low", roi: "~$90/shift",
+      detail: "Chip conveyor jams and door interlocks resolve themselves ~70% of the time. Auto-recovery eliminates the operator call time (avg 4.2 min/incident)." });
   }
   if (m.performance < 0.92) {
-    out.push({ title: "Verify feed/speed override", impact: "+3.1% OEE", effort: "low", detail: "Operator override is below 100%. Confirm there's no acoustic or vibration reason before resetting." });
-    out.push({ title: "Tool wear telemetry", impact: "+2.0% OEE", effort: "high", detail: "Add load-cell signal on Z-axis to predict tool replacement before cycle slowdown is observed." });
+    out.push({ title: "Reset feed/speed override to 100%", impact: "+3.1% OEE", effort: "low", roi: "~$160/shift",
+      detail: `Current override is ~${Math.round(m.performance * 100)}%. Confirm no vibration or acoustic reason before resetting. Should recover cycle time immediately.` });
+    out.push({ title: "Predictive tool-change via spindle load", impact: "+2.0% OEE", effort: "high", roi: "~$104/shift",
+      detail: "Monitor Z-axis load trend. At 15% above baseline, prompt tool change before cycle slowdown compounds — avoids both performance AND quality loss." });
   }
   if (m.quality < 0.97) {
-    out.push({ title: "In-process probing", impact: "−40% scrap", effort: "medium", detail: "Add a Renishaw probe macro after rough pass; catches drift before finishing operations." });
+    out.push({ title: "In-process probing after rough pass", impact: "−40% scrap", effort: "medium", roi: "~$80/shift",
+      detail: "Renishaw probe macro detects bore drift before finishing cut. Catches the leading edge of tool wear before it produces scrap — reduces first-article re-inspection." });
   }
   if (m.status === "ALARM") {
-    out.unshift({ title: "Page on-call maintenance", impact: "critical", effort: "now", detail: "Notify the on-call mechanical tech via PagerDuty; alarm has persisted longer than the 5-minute SLO." });
+    out.unshift({ title: "Page on-call maintenance now", impact: "critical", effort: "immediate", roi: "blocks all recovery",
+      detail: "Alarm has persisted past the 5-min SLO. Notify on-call mechanical tech via PagerDuty. Every 10 min of delay = ~1 additional lost part at this machine's output rate." });
   }
   if (out.length === 0) {
-    out.push({ title: "Document setup as gold-standard", impact: "replicate", effort: "low", detail: "Snapshot current parameters and propagate to similar machines on the floor." });
+    out.push({ title: "Document as gold-standard SOP", impact: "fleet-wide", effort: "low", roi: "~$500+/shift fleet",
+      detail: "Snapshot program, offsets, tooling, and fixture setup. Propagate to CNC-06 and CNC-07 which run the same family of parts — fleet OEE gain of ~3–5% expected." });
   }
   return out;
 }
@@ -122,7 +174,7 @@ function TypingLine({ text, speed = 14, onDone }: { text: string; speed?: number
       if (i >= text.length) { clearInterval(id); onDone?.(); }
     }, speed);
     return () => clearInterval(id);
-  }, [text, speed, onDone]);
+  }, [text]);
   return <>{shown}<span className="ai-caret">▍</span></>;
 }
 
@@ -130,9 +182,9 @@ function AIAnalysisAnimation({ onComplete }: { onComplete?: () => void }) {
   const [step, setStep] = useState(0);
   useEffect(() => {
     if (step >= ANALYSIS_STEPS.length) { onComplete?.(); return; }
-    const id = setTimeout(() => setStep((s) => s + 1), 480);
+    const id = setTimeout(() => setStep((s) => s + 1), 460);
     return () => clearTimeout(id);
-  }, [step, onComplete]);
+  }, [step]);
   return (
     <div className="ai-steps">
       {ANALYSIS_STEPS.map((s, i) => (
@@ -167,21 +219,38 @@ function LossBar({ losses }: { losses: Loss[] }) {
   );
 }
 
-function simulateAIAnswer(m: Machine, q: string): string {
-  if (m.status === "ALARM") return `${m.name} is currently in an ALARM state and requires immediate operator attention. The spindle load exceeded threshold, preventing normal production. Resolve the alarm condition first, then re-evaluate OEE once the machine returns to RUNNING. Maintenance should inspect for mechanical fault or coolant issue.`;
-  if (m.oee >= 0.85) return `${m.name} is operating at world-class OEE of ${(m.oee * 100).toFixed(1)}%. Availability at ${(m.availability * 100).toFixed(0)}% and quality at ${(m.quality * 100).toFixed(0)}% are both strong. Continue current setup parameters and consider documenting this configuration as the reference standard for similar machines on the floor.`;
-  const topLoss = m.availability < 0.85 ? "availability" : m.performance < 0.92 ? "performance" : "quality";
-  return `${m.name} is running at ${(m.oee * 100).toFixed(1)}% OEE — below the 85% world-class target. The primary driver is ${topLoss} loss (${topLoss === "availability" ? (m.availability * 100).toFixed(0) : topLoss === "performance" ? (m.performance * 100).toFixed(0) : (m.quality * 100).toFixed(0)}%). Focus the next shift's improvement effort on the ${topLoss} lever for the highest OEE gain. Check the Suggested Next Steps panel for ranked actions.`;
+function ImpactCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+  return (
+    <div className="flex flex-col gap-1 border border-line bg-white p-3">
+      <span className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.14em] text-muted">{label}</span>
+      <b className="font-mono text-xl font-bold tabular-nums" style={color ? { color } : {}}>{value}</b>
+      {sub && <span className="font-mono text-[10px] text-muted">{sub}</span>}
+    </div>
+  );
+}
+
+function simulateAIAnswer(m: Machine, _q: string): string {
+  const health = oeeHealthScore(m);
+  const impact = lossImpact(m);
+  if (m.status === "ALARM") {
+    return `${m.name} is in an active ALARM and requires immediate mechanical attention. Do not attempt OEE optimization until the fault is cleared — all downstream improvements are blocked.\n\nEstimated loss while alarm persists: ~$${(impact.lostRevenue).toFixed(0)} revenue / shift.\n\nAction: page on-call maintenance, run alarm diagnostics (check spindle load history, door interlock, coolant level), and log root cause in the maintenance system.`;
+  }
+  if (m.oee >= 0.85) {
+    return `${m.name} is at ${health.score}% OEE — ${health.grade}. All three pillars (A ${(m.availability*100).toFixed(0)}%, P ${(m.performance*100).toFixed(0)}%, Q ${(m.quality*100).toFixed(0)}%) are in the green band.\n\nThe best move now is to snapshot this setup (program, offsets, tooling, fixture) and propagate it to CNC-06 and CNC-07. A 3% fleet-wide OEE lift from replication is achievable within the next two shifts.`;
+  }
+  const topLoss = m.availability < 0.85 ? `availability (${(m.availability*100).toFixed(0)}%)` : m.performance < 0.92 ? `performance (${(m.performance*100).toFixed(0)}%)` : `quality (${(m.quality*100).toFixed(0)}%)`;
+  return `${m.name} is at ${health.score}% OEE (${health.grade}). Primary loss driver is ${topLoss}.\n\nThis shift: ~${impact.lostHrs.toFixed(1)} hrs of productive time lost, ~${impact.lostParts} parts foregone, ~$${impact.lostRevenue.toFixed(0)} in revenue impact.\n\nHighest-leverage action: ${topLoss.startsWith("availability") ? "run the SMED changeover audit and enable micro-stop auto-restart" : topLoss.startsWith("performance") ? "reset feed/speed override to 100% — single highest-ROI action" : "add in-process probing after rough pass to catch bore drift early"}. Expected OEE recovery: 3–5% within current shift.`;
 }
 
 export default function AIInsightsScreen({ machines }: { machines: Machine[] }) {
   const [selectedId, setSelectedId] = useState(machines[0]?.id);
   const [snap, setSnap] = useState<Machine>(machines[0]);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     const cur = machines.find((x) => x.id === selectedId);
     if (cur) setSnap(cur);
-  }, [selectedId, machines]);
+  }, [selectedId]);
 
   const m = snap;
   const [phase, setPhase] = useState<"analyzing" | "typing" | "done">("analyzing");
@@ -196,6 +265,8 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
 
   const reasons = useMemo(() => reasonsFor(m), [m.id, m.status]);
   const suggestions = useMemo(() => suggestionsFor(m), [m.id, m.status]);
+  const health = useMemo(() => oeeHealthScore(m), [m.oee]);
+  const impact = useMemo(() => lossImpact(m), [m.oee, m.planned]);
 
   useEffect(() => {
     if (!headlineDone || revealed >= reasons.length) return;
@@ -211,29 +282,30 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
     if (!q.trim() || aiBusy) return;
     setAiBusy(true);
     setAiAnswer("");
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1400));
     setAiAnswer(simulateAIAnswer(m, q));
     setAiBusy(false);
   };
 
   const headline =
     m.status === "ALARM"
-      ? `${m.name} is in an active ALARM. The first action is to clear the fault before any optimization will help.`
+      ? `${m.name} is in an active ALARM. Resolve the fault first — every minute costs ~0.1 parts.`
       : m.oee >= 0.85
-        ? `${m.name} is performing at world-class levels (${(m.oee * 100).toFixed(1)}% OEE). Hold the line and replicate this setup.`
+        ? `${m.name} is world-class at ${(m.oee * 100).toFixed(1)}% OEE. Replicate this setup to lift the fleet.`
         : m.oee >= 0.65
-          ? `${m.name} is running at ${(m.oee * 100).toFixed(1)}% OEE — typical for the fleet, but ${reasons.length} clear levers are available to push past 85%.`
-          : `${m.name} is below ${(m.oee * 100).toFixed(0)}% OEE. The biggest losses are concentrated in ${reasons[0]?.kind}; here's what I'd do next.`;
+          ? `${m.name} is at ${(m.oee * 100).toFixed(1)}% — ${reasons.length} clear loss drivers identified. Estimated $${impact.lostRevenue.toFixed(0)} in recoverable revenue this shift.`
+          : `${m.name} is at ${(m.oee * 100).toFixed(0)}% — critical loss in ${reasons[0]?.kind}. Immediate action needed.`;
 
   const presets = [
     "Why is OEE low this shift?",
-    "How can I improve performance?",
-    "What's causing the alarms?",
-    "Compare to last week.",
+    "What is the revenue impact?",
+    "How do I fix performance loss?",
+    "What to do about the alarm?",
   ];
 
   return (
     <div className="ai-screen">
+      {/* ── desktop sidebar / mobile bottom sheet toggle ── */}
       <aside className="ai-sidebar">
         <div className="ai-side-h">
           <span className="ai-eyebrow">SELECT MACHINE</span>
@@ -242,25 +314,49 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
         <div className="ai-side-list">
           {machines.map((mm) => {
             const c = STATUS_COLORS[mm.status].color;
+            const h = oeeHealthScore(mm);
             return (
               <button key={mm.id} type="button"
                 className={`ai-side-item ${mm.id === selectedId ? "active" : ""}`}
-                onClick={() => setSelectedId(mm.id)}>
+                onClick={() => { setSelectedId(mm.id); setMobileSidebarOpen(false); }}>
                 <span className="ai-side-dot" style={{ background: c }} />
                 <span className="ai-side-name">
                   <strong>{mm.name}</strong>
                   <i>{mm.model}</i>
                 </span>
-                <span className="ai-side-oee" style={{ color: mm.oee >= 0.85 ? "#16a34a" : mm.oee >= 0.65 ? "#0f62fe" : "#d97706" }}>
-                  {(mm.oee * 100).toFixed(0)}<i>%</i>
-                </span>
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="ai-side-oee" style={{ color: h.color }}>
+                    {(mm.oee * 100).toFixed(0)}<i>%</i>
+                  </span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "9px", color: h.color, letterSpacing: ".04em" }}>{h.grade}</span>
+                </div>
               </button>
             );
           })}
         </div>
       </aside>
 
+      {/* ── mobile machine picker bar (hidden on desktop) ── */}
+      <div className="ai-mobile-picker">
+        <div className="ai-mobile-picker-scroll">
+          {machines.map((mm) => {
+            const c = STATUS_COLORS[mm.status].color;
+            return (
+              <button key={mm.id} type="button"
+                className={`ai-mobile-chip ${mm.id === selectedId ? "active" : ""}`}
+                onClick={() => setSelectedId(mm.id)}>
+                <span className="ai-mobile-chip-dot" style={{ background: c }} />
+                <span>{mm.name}</span>
+                <span style={{ color: oeeHealthScore(mm).color }}>{(mm.oee * 100).toFixed(0)}%</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── main content ── */}
       <div className="ai-main">
+        {/* machine header */}
         <header className="ai-head">
           <div>
             <span className="ai-eyebrow"><span className="ai-spark" /> AI ROOT-CAUSE ANALYST</span>
@@ -274,6 +370,64 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
           </div>
         </header>
 
+        {/* ── health score + loss impact (always visible) ── */}
+        <div className="ai-impact-row">
+          <div className="ai-health-badge" style={{ borderColor: health.color + "44", background: health.color + "0d" }}>
+            <span className="ai-health-score" style={{ color: health.color }}>{health.score}</span>
+            <div className="ai-health-meta">
+              <span className="ai-health-grade" style={{ color: health.color }}>{health.grade}</span>
+              <span className="ai-health-label">Health Score</span>
+            </div>
+          </div>
+          <div className="ai-impact-grid">
+            <ImpactCard label="Hours lost" value={`${impact.lostHrs.toFixed(1)}h`} sub="this shift" color={impact.lostHrs > 1 ? "#dc2626" : "#d97706"} />
+            <ImpactCard label="Parts foregone" value={String(impact.lostParts)} sub="vs world-class" color="#d97706" />
+            <ImpactCard label="Revenue impact" value={`$${impact.lostRevenue.toFixed(0)}`} sub="est. this shift" color={impact.lostRevenue > 500 ? "#dc2626" : "#d97706"} />
+          </div>
+        </div>
+
+        {/* ── loss waterfall ── */}
+        <div className="ai-card">
+          <div className="ai-card-h"><span>OEE LOSS WATERFALL</span></div>
+          <div className="ai-waterfall">
+            {[
+              { label: "Availability", lost: impact.availLoss, color: LOSS_PALETTE.changeover },
+              { label: "Performance",  lost: impact.perfLoss,  color: LOSS_PALETTE.speed },
+              { label: "Quality",      lost: impact.qualLoss,  color: LOSS_PALETTE.rework },
+            ].map((row) => (
+              <div key={row.label} className="ai-waterfall-row">
+                <span className="ai-waterfall-lbl">{row.label}</span>
+                <div className="ai-waterfall-track">
+                  <div className="ai-waterfall-bar" style={{ width: `${Math.min((row.lost / Math.max(impact.lostHrs, 0.1)) * 100, 100)}%`, background: row.color }} />
+                </div>
+                <span className="ai-waterfall-val">{row.lost.toFixed(2)}h lost</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── fleet benchmark ── */}
+        <div className="ai-card">
+          <div className="ai-card-h"><span>FLEET BENCHMARK</span></div>
+          <div className="ai-benchmark">
+            {machines.slice(0, 6).map((mm) => {
+              const isSelected = mm.id === m.id;
+              const pct = mm.oee * 100;
+              return (
+                <div key={mm.id} className={`ai-bench-row ${isSelected ? "ai-bench-selected" : ""}`}>
+                  <span className="ai-bench-name">{mm.name}</span>
+                  <div className="ai-bench-track">
+                    <div className="ai-bench-bar" style={{ width: `${pct}%`, background: pct >= 85 ? "#16a34a" : pct >= 65 ? "#0f62fe" : "#dc2626" }} />
+                  </div>
+                  <span className="ai-bench-val">{pct.toFixed(0)}%</span>
+                  {isSelected && <span className="ai-bench-you">← YOU</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* ── AI answer card ── */}
         <section className="ai-card ai-answer">
           <div className="ai-card-h">
             <span className="ai-spark" />
@@ -291,6 +445,7 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
           )}
         </section>
 
+        {/* ── root causes ── */}
         {headlineDone && (
           <section>
             <h4 className="ai-section-h">
@@ -306,6 +461,14 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
                   </div>
                   <h5>{r.title}</h5>
                   <p>{r.detail}</p>
+                  {r.failureModes && r.failureModes.length > 0 && (
+                    <div className="ai-failure-modes">
+                      <span className="ai-fm-label">LIKELY FAILURE MODES</span>
+                      <ul>
+                        {r.failureModes.map((fm, fi) => <li key={fi}>{fm}</li>)}
+                      </ul>
+                    </div>
+                  )}
                   <LossBar losses={r.losses} />
                 </div>
               ))}
@@ -313,6 +476,7 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
           </section>
         )}
 
+        {/* ── suggestions ── */}
         {revealed >= reasons.length && headlineDone && (
           <section>
             <h4 className="ai-section-h">
@@ -326,6 +490,7 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
                   <div className="ai-sugg-body">
                     <h5>{s.title}</h5>
                     <p>{s.detail}</p>
+                    {s.roi && <span className="ai-sugg-roi">Est. ROI: {s.roi}</span>}
                   </div>
                   <div className="ai-sugg-effort">
                     <span>EFFORT</span><b>{s.effort}</b>
@@ -337,6 +502,7 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
           </section>
         )}
 
+        {/* ── ask anything ── */}
         <section className="ai-ask">
           <div className="ai-card-h">
             <span className="ai-spark" />
@@ -348,7 +514,7 @@ export default function AIInsightsScreen({ machines }: { machines: Machine[] }) 
             ))}
           </div>
           <form className="ai-form" onSubmit={(e) => { e.preventDefault(); askAI(prompt); }}>
-            <input type="text" placeholder={`Ask about ${m.name}…  e.g. "What changed since Tuesday?"`}
+            <input type="text" placeholder={`Ask about ${m.name}…`}
               value={prompt} onChange={(e) => setPrompt(e.target.value)} />
             <button type="submit" disabled={aiBusy || !prompt.trim()}>
               {aiBusy ? "Thinking…" : "Ask AI →"}

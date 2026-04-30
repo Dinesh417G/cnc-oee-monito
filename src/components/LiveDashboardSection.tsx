@@ -5,6 +5,7 @@ import { useSimulator } from "@/hooks/useSimulator";
 import FloorStats from "./FloorStats";
 import MachineTile from "./MachineTile";
 import MachineDetail from "./MachineDetail";
+import MobileFloorView from "./MobileFloorView";
 import AIInsightsScreen from "./AIInsightsScreen";
 import TrendsScreen from "./TrendsScreen";
 import AlertsScreen from "./AlertsScreen";
@@ -74,11 +75,18 @@ export default function LiveDashboardSection() {
 
           {/* tab panels */}
           {tab === "floor" && (
-            <div className="grid grid-cols-2 gap-px bg-line md:grid-cols-3 lg:grid-cols-5">
-              {machines.map((m) => (
-                <MachineTile key={m.id} m={m} onClick={setActive} />
-              ))}
-            </div>
+            <>
+              {/* desktop: 5-col tile grid */}
+              <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-5 gap-px bg-line">
+                {machines.map((m) => (
+                  <MachineTile key={m.id} m={m} onClick={setActive} />
+                ))}
+              </div>
+              {/* mobile: single focused machine view */}
+              <div className="md:hidden">
+                <MobileFloorView machines={machines} />
+              </div>
+            </>
           )}
           {tab === "ai" && <AIInsightsScreen machines={machines} />}
           {tab === "trends" && <TrendsScreen machines={machines} />}

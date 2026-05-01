@@ -1,12 +1,19 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 
+import type { Machine } from "@/lib/types";
+
+export interface TourDataPatch {
+  machines?: Machine[];
+}
+
 export interface TourStep {
   id: string;
   durationMs: number;
   caption: string;
   focusElement?: string;
   activeTab?: "floor" | "ai" | "trends" | "alerts";
+  dataPatch?: TourDataPatch;
 }
 
 export function useTourPlayer(script: TourStep[]) {

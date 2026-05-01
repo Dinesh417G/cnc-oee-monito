@@ -2,10 +2,17 @@
 import { useEffect, useState } from "react";
 import { useFloorStore } from "@/lib/store";
 
-export default function FloorStats() {
-  const machines = useFloorStore((s) => s.machines);
+export default function FloorStats({
+  machines: propMachines,
+  hideSimulator = false,
+}: {
+  machines?: ReturnType<typeof useFloorStore.getState>["machines"];
+  hideSimulator?: boolean;
+}) {
+  const storeMachines = useFloorStore((s) => s.machines);
   const simulatorOn = useFloorStore((s) => s.simulatorOn);
   const setSimulatorOn = useFloorStore((s) => s.setSimulatorOn);
+  const machines = propMachines ?? storeMachines;
 
   const counts = machines.reduce<Record<string, number>>((acc, m) => {
     acc[m.status] = (acc[m.status] || 0) + 1; return acc;
@@ -37,14 +44,16 @@ export default function FloorStats() {
       <Cell label="OFFLINE" value={String(counts.OFFLINE || 0)} color="#6b7280" />
       <span className="my-1.5 mx-2 w-px bg-line" />
       <Cell label={`SHIFT A · ${elapsedLbl}`} value={clock} mono />
-      <div className="ml-auto flex flex-col px-4 py-1">
-        <span className="font-mono text-[9.5px] font-medium tracking-[0.14em] text-muted">SIMULATOR</span>
-        <button type="button" onClick={() => setSimulatorOn(!simulatorOn)}
-                className="mt-1 inline-flex items-center gap-1.5 border border-line bg-white px-2 py-1 font-mono text-[11px] font-medium tracking-[0.06em]">
-          <i className={`h-1.5 w-1.5 rounded-full ${simulatorOn ? "bg-run shadow-[0_0_0_3px_rgba(22,163,74,.18)]" : "bg-[#9ca3af]"}`} />
-          <span className={simulatorOn ? "text-ink" : "text-muted"}>{simulatorOn ? "ON" : "OFF"}</span>
-        </button>
-      </div>
+      {!hideSimulator && (
+        <div className="ml-auto flex flex-col px-4 py-1">
+          <span className="font-mono text-[9.5px] font-medium tracking-[0.14em] text-muted">SIMULATOR</span>
+          <button type="button" onClick={() => setSimulatorOn(!simulatorOn)}
+                  className="mt-1 inline-flex items-center gap-1.5 border border-line bg-white px-2 py-1 font-mono text-[11px] font-medium tracking-[0.06em]">
+            <i className={`h-1.5 w-1.5 rounded-full ${simulatorOn ? "bg-run shadow-[0_0_0_3px_rgba(22,163,74,.18)]" : "bg-[#9ca3af]"}`} />
+            <span className={simulatorOn ? "text-ink" : "text-muted"}>{simulatorOn ? "ON" : "OFF"}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

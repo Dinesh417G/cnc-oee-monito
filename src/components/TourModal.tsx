@@ -1,7 +1,10 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import type { Machine } from "@/lib/types";
 import { useTourPlayer } from "@/hooks/useTourPlayer";
 import { TOUR_SCRIPT } from "@/lib/tourScript";
+import { TOUR_MACHINES } from "@/lib/tourMockData";
+import TourDashboard from "./TourDashboard";
 
 interface Props { onClose: () => void; }
 
@@ -11,38 +14,48 @@ export default function TourModal({ onClose }: Props) {
     progress, isPaused, isComplete, controls,
   } = useTourPlayer(TOUR_SCRIPT);
 
+  // Apply data patches as steps advance
+  const [machines, setMachines] = useState<Machine[]>(TOUR_MACHINES);
+  useEffect(() => {
+    if (currentStep?.dataPatch?.machines) {
+      setMachines(currentStep.dataPatch.machines);
+    }
+  }, [currentStep?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Body scroll lock
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
 
-  // ESC to close; arrow keys + space
+  // ESC + keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape")      { onClose(); return; }
-      if (e.key === "ArrowRight")  { controls.skipNext(); return; }
-      if (e.key === "ArrowLeft")   { controls.skipPrev(); return; }
-      if (e.key === " ")           { e.preventDefault(); isPaused ? controls.play() : controls.pause(); }
+      if (e.key === "Escape")     { onClose(); return; }
+      if (e.key === "ArrowRight") { controls.skipNext(); return; }
+      if (e.key === "ArrowLeft")  { controls.skipPrev(); return; }
+      if (e.key === " ")          { e.preventDefault(); isPaused ? controls.play() : controls.pause(); }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose, controls, isPaused]);
 
   const pct = Math.round(progress * 100);
+  const activeTab = currentStep?.activeTab ?? "floor";
 
   return (
     <div
-      className="fixed inset-0 z-[400] flex items-center justify-center p-4 md:p-8"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 z-[400] flex items-center justify-center p-2 md:p-6"
+      style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)" }}
       onClick={onClose}
     >
       <div
-        className="relative flex w-full max-w-5xl flex-col bg-white shadow-[0_40px_80px_-20px_rgba(0,17,65,0.5)] max-h-[90vh]"
+        className="relative flex w-full max-w-5xl flex-col bg-white shadow-[0_40px_80px_-20px_rgba(0,17,65,0.5)]"
+        style={{ maxHeight: "92vh" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
-        <div className="flex items-center justify-between border-b border-line bg-[#fafbfd] px-5 py-3">
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-line bg-[#fafbfd] px-5 py-3">
           <div className="flex items-center gap-3">
             <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
               Guided Tour
@@ -60,43 +73,47 @@ export default function TourModal({ onClose }: Props) {
           </button>
         </div>
 
-        {/* ── Content — Phase 1 placeholder ── */}
-        <div className="flex flex-1 items-center justify-center bg-[#fafbfd] px-8 py-16 min-h-[420px]">
-          <div className="text-center max-w-lg">
-            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
-              {currentStep?.activeTab ?? "floor"} view
-            </span>
-            <p className="mt-4 text-xl font-bold leading-snug tracking-tight text-navy">
-              {currentStep?.caption}
-            </p>
-            <p className="mt-3 text-sm text-muted">
-              Dashboard renders here in Phase 2.
-            </p>
+        {/* ── Dashboard ── */}
+        <div className="relative min-h-0 flex-1 overflow-auto">
+          <TourDashboard machines={machines} activeTab={activeTab} />
 
-            {isComplete && (
-              <div className="mt-10 flex flex-col items-center gap-3">
-                <p className="text-sm font-semibold text-navy">Tour complete.</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={controls.restart}
-                    className="inline-flex h-10 items-center gap-2 border border-line px-4 text-sm font-medium hover:bg-ink hover:text-white hover:border-ink"
-                  >
-                    ↺ Watch again
-                  </button>
+          {/* Tour-complete overlay */}
+          {isComplete && (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ background: "rgba(0,17,65,0.72)", backdropFilter: "blur(2px)" }}
+            >
+              <div className="flex flex-col items-center gap-5 border border-line bg-white p-8 text-center shadow-xl max-w-sm mx-4">
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-primary">
+                  Tour complete
+                </span>
+                <h2 className="text-2xl font-bold leading-tight tracking-tight text-navy">
+                  Want this on your factory floor?
+                </h2>
+                <p className="text-sm leading-relaxed text-muted">
+                  Book a 30-minute call. We&apos;ll show you with your real machine data.
+                </p>
+                <div className="flex flex-wrap justify-center gap-3 pt-1">
                   <button
                     onClick={onClose}
-                    className="inline-flex h-10 items-center gap-2 bg-primary px-5 text-sm font-medium text-white hover:bg-[#0050e6]"
+                    className="inline-flex h-11 items-center gap-2 bg-primary px-6 text-[14px] font-semibold text-white hover:bg-[#0050e6]"
                   >
                     Book a demo →
                   </button>
+                  <button
+                    onClick={controls.restart}
+                    className="inline-flex h-11 items-center gap-2 border border-line px-5 text-[14px] font-medium hover:bg-ink hover:text-white hover:border-ink"
+                  >
+                    ↺ Watch again
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* ── Progress + Controls ── */}
-        <div className="border-t border-line">
+        <div className="flex-shrink-0 border-t border-line">
           <div className="h-[3px] bg-line overflow-hidden">
             <div
               className="h-full bg-primary"
@@ -105,25 +122,14 @@ export default function TourModal({ onClose }: Props) {
           </div>
           <div className="flex items-center justify-between px-5 py-2.5">
             <div className="flex items-center gap-0.5">
-              <CtrlBtn onClick={controls.skipPrev} disabled={currentStepIndex === 0} title="Previous (←)">
-                ⏮
-              </CtrlBtn>
-              <CtrlBtn
-                onClick={isPaused ? controls.play : controls.pause}
-                title={isPaused ? "Play (Space)" : "Pause (Space)"}
-              >
+              <CtrlBtn onClick={controls.skipPrev} disabled={currentStepIndex === 0} title="Previous (←)">⏮</CtrlBtn>
+              <CtrlBtn onClick={isPaused ? controls.play : controls.pause} title={isPaused ? "Play (Space)" : "Pause (Space)"}>
                 {isPaused ? "▶" : "⏸"}
               </CtrlBtn>
-              <CtrlBtn onClick={controls.skipNext} disabled={isComplete} title="Next (→)">
-                ⏭
-              </CtrlBtn>
-              <CtrlBtn onClick={controls.restart} title="Restart">
-                ↺
-              </CtrlBtn>
+              <CtrlBtn onClick={controls.skipNext} disabled={isComplete} title="Next (→)">⏭</CtrlBtn>
+              <CtrlBtn onClick={controls.restart} title="Restart">↺</CtrlBtn>
             </div>
-            <span className="font-mono text-[11px] text-muted tabular-nums select-none">
-              {pct}%
-            </span>
+            <span className="font-mono text-[11px] text-muted tabular-nums select-none">{pct}%</span>
           </div>
         </div>
       </div>

@@ -30,11 +30,16 @@ const config: Config = {
           "70%":  { transform: "translate(-50%,-50%) scale(1.15)", opacity: "0" },
           "100%": { transform: "translate(-50%,-50%) scale(1.15)", opacity: "0" },
         },
+        marquee: {
+          "0%":   { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
       },
       animation: {
         blink:      "blink 1.4s infinite",
         alarmFlash: "alarmFlash 1.4s infinite",
         pulseRing:  "pulse2 2.4s cubic-bezier(.4,0,.6,1) infinite",
+        marquee:    "marquee 20s linear infinite",
       },
     },
   },

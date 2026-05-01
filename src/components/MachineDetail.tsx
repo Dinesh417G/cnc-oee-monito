@@ -60,13 +60,18 @@ export default function MachineDetail({ m, onClose }: { m: Machine; onClose: () 
               </div>
             </Card>
             <Card title="7-Shift OEE Trend">
-              <div style={{ width: "100%", height: 140 }}>
+              <div style={{ width: "100%", height: 180 }}>
                 <ResponsiveContainer>
-                  <LineChart data={trend} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <LineChart data={trend} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eef0f4" vertical={false} />
                     <XAxis dataKey="shift" stroke="#5b6473" tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }} />
-                    <YAxis domain={[0, 100]} stroke="#5b6473" tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }} />
-                    <Tooltip contentStyle={{ fontSize: 12, fontFamily: "var(--font-mono)" }} />
+                    <YAxis width={28} domain={[0, 100]} stroke="#5b6473" tick={{ fontSize: 10, fontFamily: "var(--font-mono)" }} />
+                    <Tooltip
+                      contentStyle={{ fontSize: 12, fontFamily: "var(--font-mono)" }}
+                      formatter={(v: number | string) => [`${(+v).toFixed(1)}%`, "OEE"]}
+                      wrapperStyle={{ maxWidth: 160 }}
+                      allowEscapeViewBox={{ x: false, y: false }}
+                    />
                     <Line type="monotone" dataKey="oee" stroke="#0f62fe" strokeWidth={2} dot={{ r: 3, fill: "#0f62fe" }} />
                   </LineChart>
                 </ResponsiveContainer>

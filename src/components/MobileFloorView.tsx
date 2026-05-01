@@ -13,9 +13,10 @@ export default function MobileFloorView({ machines }: { machines: Machine[] }) {
   const defectRate = m.total ? (m.rejected / m.total) * 100 : 0;
 
   return (
-    <div className="flex flex-col">
-      {/* machine selector strip */}
-      <div className="flex gap-0 overflow-x-auto border-b border-line bg-[#fafbfd] scrollbar-hide">
+    <div className="flex flex-col min-w-0">
+      {/* machine selector strip — overflow-hidden on wrapper clips page; inner div scrolls */}
+      <div className="relative overflow-hidden border-b border-line bg-[#fafbfd]">
+        <div className="flex gap-0 overflow-x-auto scrollbar-hide">
         {machines.map((mm) => {
           const sc = STATUS_COLORS[mm.status];
           const active = mm.id === selectedId;
@@ -34,6 +35,9 @@ export default function MobileFloorView({ machines }: { machines: Machine[] }) {
             </button>
           );
         })}
+        </div>
+        {/* right-edge fade — hints at horizontal scrollability */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[#fafbfd] to-transparent" />
       </div>
 
       {/* focused machine card */}
@@ -56,17 +60,17 @@ export default function MobileFloorView({ machines }: { machines: Machine[] }) {
 
         {/* OEE gauge + APQ */}
         <div className="flex items-center gap-0 border-b border-line">
-          <div className="flex flex-1 flex-col items-center justify-center px-4 py-5">
+          <div className="flex flex-1 min-w-0 flex-col items-center justify-center px-4 py-5">
             <OEEGauge value={m.oee} size={140} stroke={11} />
           </div>
-          <div className="flex flex-col gap-px border-l border-line">
+          <div className="flex flex-col gap-px border-l border-line min-w-0">
             {(["A", "P", "Q"] as const).map((k, i) => {
               const v = [m.availability, m.performance, m.quality][i];
               const good = v >= (k === "Q" ? 0.97 : 0.85);
               return (
-                <div key={k} className="flex items-center gap-3 border-b border-line px-4 py-3 last:border-0">
-                  <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-muted w-4">{k}</span>
-                  <div className="flex-1">
+                <div key={k} className="flex items-center gap-3 border-b border-line px-3 py-3 last:border-0">
+                  <span className="font-mono text-[10px] font-semibold tracking-[0.14em] text-muted w-4 flex-shrink-0">{k}</span>
+                  <div className="flex-1 min-w-0">
                     <div className="h-1.5 w-full bg-line overflow-hidden">
                       <div className="h-full transition-all" style={{ width: `${v * 100}%`, background: good ? "#16a34a" : v >= 0.7 ? "#d97706" : "#dc2626" }} />
                     </div>

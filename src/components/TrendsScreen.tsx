@@ -235,13 +235,14 @@ export default function TrendsScreen({ machines }: { machines: Machine[] }) {
         </div>
       </div>
 
-      <div className="trends-grid">
-        <div className="trends-card scenario-card">
-          {(() => {
-            const s = series.find((x) => x.id === focusId) || series.find((x) => x.id === "M-05") || series[0];
-            const st = s.story;
-            return (
-              <>
+      {/* ── What Happened — full-width above the 2-col grid ── */}
+      <div className="trends-card scenario-card">
+        {(() => {
+          const s = series.find((x) => x.id === focusId) || series.find((x) => x.id === "M-05") || series[0];
+          const st = s.story;
+          return (
+            <div className="scenario-inner">
+              <div className="scenario-left">
                 <div className="card-h">
                   <span>WHAT HAPPENED · {s.name}</span>
                   <span className="scenario-tag" style={{ background: st.tagColor }}>{st.tag}</span>
@@ -251,18 +252,22 @@ export default function TrendsScreen({ machines }: { machines: Machine[] }) {
                   <div><b>{st.lossHrs.toFixed(1)}h</b><span>lost today</span></div>
                   <div><b>${st.lossDollars.toLocaleString()}</b><span>est. revenue impact</span></div>
                 </div>
+              </div>
+              <div className="scenario-right">
                 <ul className="scenario-bullets">
                   {st.bullets.map((b, i) => <li key={i}>{b}</li>)}
                 </ul>
-                <div className="scenario-fix">
+                <div className="scenario-fix scenario-fix-inline">
                   <span className="scenario-fix-eyebrow">RECOMMENDED FIX</span>
                   <p>{st.fix}</p>
                 </div>
-              </>
-            );
-          })()}
-        </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
 
+      <div className="trends-grid">
         <div className="trends-card">
           <div className="card-h">SIX BIG LOSSES · LAST 24 H</div>
           <div className="pareto">

@@ -267,7 +267,11 @@ body { font-family: var(--font-sans); color: #0b1220; background: #fff; -webkit-
   .ai-head-stats { gap: 10px; }
   .ai-head-stats b { font-size: 14px; }
   .ai-sugg { grid-template-columns: 1fr; gap: 8px; }
-  .alert-row { grid-template-columns: 60px 70px 1fr; gap: 8px; padding: 10px 12px; }
+  .alert-row { display: grid; grid-template-columns: auto auto 1fr auto; grid-template-rows: auto auto; column-gap: 8px; row-gap: 4px; padding: 10px 12px; align-items: center; }
+  .alert-tag     { grid-column: 1; grid-row: 1; }
+  .alert-machine { grid-column: 2; grid-row: 1; align-self: center; }
+  .alert-time    { grid-column: 4; grid-row: 1; text-align: right; }
+  .alert-msg     { grid-column: 1 / -1; grid-row: 2; }
   .alert-machine i, .alert-cta { display: none; }
   .trends-screen, .alerts-screen { padding: 16px; gap: 14px; }
   .trends-grid { grid-template-columns: 1fr; }

@@ -24,7 +24,7 @@ export default function MobileFloorView({ machines }: { machines: Machine[] }) {
             <button
               key={mm.id}
               onClick={() => setSelectedId(mm.id)}
-              className={`flex flex-col items-center gap-1 px-3 py-2.5 flex-shrink-0 border-r border-line transition-colors ${active ? "bg-white border-b-2 border-b-primary" : "hover:bg-white"}`}
+              className={`flex flex-col items-center gap-1 px-3 py-2.5 flex-shrink-0 min-w-[88px] border-r border-line transition-colors ${active ? "bg-white border-b-2 border-b-primary" : "hover:bg-white"}`}
               style={active ? { borderBottomColor: "#0f62fe" } : {}}
             >
               <span className="h-2 w-2 rounded-full" style={{ background: sc.color }} />

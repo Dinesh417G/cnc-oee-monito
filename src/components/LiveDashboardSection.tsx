@@ -68,8 +68,8 @@ export default function LiveDashboardSection() {
             <span className="h-2.5 w-2.5 rounded-full bg-[#d6dae2]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#d6dae2]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#d6dae2]" />
-            <span className="ml-3 max-w-[420px] flex-1 rounded border border-line bg-white px-2.5 py-1 font-mono text-[11px] text-muted">
-              app.electronix.io / floor / plant-a / shift-A
+            <span className="ml-3 max-w-[420px] flex-1 rounded border border-line bg-white px-2.5 py-1 font-mono text-[10px] md:text-[11px] text-muted">
+              <span className="hidden md:inline">app.electronix.io / </span>floor / plant-a / shift-A
             </span>
             <span className="ml-auto flex items-center gap-1.5 font-mono text-[11px] text-run">
               <span className="h-1.5 w-1.5 animate-blink rounded-full bg-run" /> LIVE &middot; 5s tick

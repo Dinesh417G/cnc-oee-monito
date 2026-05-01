@@ -59,7 +59,7 @@ export default function ContactModal() {
 
           <div className="flex flex-col gap-4">
             <a
-              href="mailto:contact@electronix.io"
+              href="mailto:sales.electronix.ies@gmail.com"
               className="flex items-center gap-4 border border-line p-4 hover:border-primary hover:bg-[#f4f8ff] transition-colors"
             >
               <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center bg-[#eaf1ff] text-primary text-lg">
@@ -67,20 +67,20 @@ export default function ContactModal() {
               </span>
               <div>
                 <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Email</p>
-                <p className="mt-0.5 font-semibold text-navy">contact@electronix.io</p>
+                <p className="mt-0.5 font-semibold text-navy">sales.electronix.ies@gmail.com</p>
               </div>
             </a>
 
             <a
-              href="tel:+18005550199"
+              href="tel:+919488233115"
               className="flex items-center gap-4 border border-line p-4 hover:border-primary hover:bg-[#f4f8ff] transition-colors"
             >
               <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center bg-[#eaf1ff] text-primary text-lg">
                 ☎
               </span>
               <div>
-                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Phone</p>
-                <p className="mt-0.5 font-semibold text-navy">+1 (800) 555-0199</p>
+                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">Phone — Volt</p>
+                <p className="mt-0.5 font-semibold text-navy">+91 94882 33115</p>
               </div>
             </a>
           </div>

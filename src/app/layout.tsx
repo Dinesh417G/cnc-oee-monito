@@ -6,31 +6,38 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jbm = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "ElectronIx — Real-Time OEE Monitoring for CNC Machine Shops",
+  title: "ElectronIx — OEE Monitoring Software for CNC Factories | Real-Time, Enterprise-Grade",
   description:
-    "ElectronIx delivers live OEE monitoring for CNC shop floors — track Availability, Performance & Quality across every spindle. Reduce downtime by 40% with AI root-cause analysis and MQTT / OPC UA integration.",
+    "Enterprise-grade OEE monitoring software for CNC factories. Works with Fanuc, Mitsubishi, and Haas. No IT team required. Live on your floor in 7 days. Built in Coimbatore, India.",
   keywords: [
     "OEE monitoring software",
-    "CNC machine monitoring",
-    "shop floor analytics",
+    "CNC OEE monitoring",
+    "Fanuc OEE monitoring",
+    "Mitsubishi CNC monitoring",
+    "Haas machine monitoring",
     "real-time OEE dashboard",
-    "manufacturing analytics",
-    "digital twin CNC",
-    "OPC UA MQTT monitoring",
-    "machining downtime reduction",
+    "factory monitoring software India",
+    "CNC machine monitoring",
+    "OEE software Coimbatore",
+    "shop floor OEE tracking",
   ],
   openGraph: {
     type: "website",
-    title: "ElectronIx — Real-Time OEE Monitoring for CNC Machine Shops",
+    title: "ElectronIx — OEE Monitoring for CNC Factories",
     description:
-      "Live OEE monitoring across every CNC spindle. AI root-cause analysis, 5-second telemetry, MQTT & OPC UA ready.",
+      "Real-time OEE monitoring across every CNC machine. Works with Fanuc, Mitsubishi, Haas. Live in 7 days.",
+    url: "https://electronix.co.in",
     siteName: "ElectronIx",
+    locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ElectronIx — Real-Time OEE Monitoring",
+    title: "ElectronIx — Real-Time OEE Monitoring for CNC Factories",
     description:
-      "See every CNC machine. Cut hidden downtime in half. AI-powered OEE monitoring built for the shop floor.",
+      "Enterprise-grade OEE monitoring across every CNC machine. Fanuc, Mitsubishi, Haas ready. Live in 7 days.",
+  },
+  alternates: {
+    canonical: "https://electronix.co.in",
   },
   robots: {
     index: true,

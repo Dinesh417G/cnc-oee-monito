@@ -14,12 +14,11 @@ export default function Hero() {
             OEE Monitoring &mdash; Digital Twin &mdash; Shop Floor
           </span>
           <h1 className="text-balance text-5xl font-bold leading-[1.02] tracking-[-0.025em] text-navy md:text-6xl lg:text-[76px]">
-            See every CNC machine. Cut hidden downtime in half.
+            Real-time OEE monitoring across every CNC machine on your factory floor.
           </h1>
           <p className="max-w-[46ch] text-pretty text-base leading-relaxed text-muted md:text-[19px]">
-            ElectronIx OEE Monitoring brings real-time Availability, Performance, and Quality
-            from every spindle on your floor into one operator-grade view —
-            with drill-down to the part, the shift, and the root cause.
+            Connect Fanuc, Mitsubishi, and Haas machines to enterprise-grade OEE monitoring
+            software — without the integration complexity. Your floor, live in 7 days.
           </p>
           <div className="mt-2 flex flex-wrap gap-3">
             <button onClick={openModal} className="inline-flex h-[46px] items-center gap-2 bg-primary px-6 text-[15px] font-medium text-white hover:bg-primary-700">
@@ -30,11 +29,17 @@ export default function Hero() {
               Watch 2-min tour
             </button>
           </div>
-          <div className="mt-5 flex flex-wrap gap-6 border-t border-line pt-5 text-[13px] text-muted">
-            <span><b className="font-semibold text-ink">OEE = A &times; P &times; Q</b></span>
-            <span>5-second sample rate</span>
-            <span>Edge agent &bull; MQTT &bull; OPC UA</span>
-            <span>SOC 2 Type II</span>
+          <div className="mt-5 flex flex-wrap gap-2.5 border-t border-line pt-5">
+            {[
+              "Works with Fanuc, Mitsubishi, Haas",
+              "Live on your floor in 7 days",
+              "No IT team. No consultants.",
+              "Real-time OEE across every shift",
+            ].map((pill) => (
+              <span key={pill} className="inline-flex items-center border border-[#c7d7ff] bg-[#eaf1ff] px-3 py-1 text-[12.5px] font-medium text-primary">
+                {pill}
+              </span>
+            ))}
           </div>
         </div>
         <div className="py-6">

@@ -1,11 +1,15 @@
 "use client";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 import { useModalStore } from "@/lib/modalStore";
+import TourModal from "./TourModal";
 const HeroScreenshot = dynamic(() => import("./HeroScreenshot"), { ssr: false });
 
 export default function Hero() {
   const openModal = useModalStore((s) => s.openModal);
+  const [tourOpen, setTourOpen] = useState(false);
   return (
+    <>
     <section className="relative overflow-hidden border-b border-line bg-gradient-to-b from-white to-[#f4f6fb] pt-20">
       <div className="pointer-events-none absolute inset-0 [background-image:linear-gradient(to_right,rgba(15,98,254,.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,98,254,.05)_1px,transparent_1px)] [background-size:64px_64px] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_30%,black_30%,transparent_80%)]" />
       <div className="relative mx-auto max-w-[1280px] px-6 md:px-10">
@@ -26,7 +30,7 @@ export default function Hero() {
                 Start free trial
                 <svg viewBox="0 0 16 16" fill="none" className="h-3.5 w-3.5"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square"/></svg>
               </button>
-              <button onClick={openModal} className="inline-flex h-[46px] items-center border border-ink px-6 text-[15px] font-medium hover:bg-ink hover:text-white">
+              <button onClick={() => setTourOpen(true)} className="inline-flex h-[46px] items-center border border-ink px-6 text-[15px] font-medium hover:bg-ink hover:text-white">
                 Watch 2-min tour
               </button>
             </div>
@@ -49,5 +53,7 @@ export default function Hero() {
         </div>
       </div>
     </section>
+    {tourOpen && <TourModal onClose={() => setTourOpen(false)} />}
+    </>
   );
 }

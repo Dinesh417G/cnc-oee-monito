@@ -29,14 +29,14 @@ export default function Hero() {
               Watch 2-min tour
             </button>
           </div>
-          <div className="mt-5 flex flex-wrap gap-2.5 border-t border-line pt-5">
+          <div className="mt-5 flex flex-nowrap gap-2.5 overflow-x-auto scrollbar-hide border-t border-line pt-5">
             {[
-              "Works with Fanuc, Mitsubishi, Haas",
+              "Works with Fanuc, Mitsubishi, Haas & Siemens",
               "Live on your floor in 7 days",
               "No IT team. No consultants.",
               "Real-time OEE across every shift",
             ].map((pill) => (
-              <span key={pill} className="inline-flex items-center border border-[#c7d7ff] bg-[#eaf1ff] px-3 py-1 text-[12.5px] font-medium text-primary">
+              <span key={pill} className="inline-flex flex-shrink-0 items-center border border-[#c7d7ff] bg-[#eaf1ff] px-3 py-1 text-[12.5px] font-medium text-primary whitespace-nowrap">
                 {pill}
               </span>
             ))}

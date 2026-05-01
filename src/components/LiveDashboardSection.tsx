@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useFloorStore } from "@/lib/store";
 import { useSimulator } from "@/hooks/useSimulator";
 import FloorStats from "./FloorStats";
@@ -13,11 +13,34 @@ import type { Machine } from "@/lib/types";
 
 type Tab = "floor" | "ai" | "trends" | "alerts";
 
+const ROTATION_MS = 5000;
+const TABS: Tab[] = ["floor", "ai", "trends", "alerts"];
+
 export default function LiveDashboardSection() {
   useSimulator();
   const machines = useFloorStore((s) => s.machines);
   const [active, setActive] = useState<Machine | null>(null);
   const [tab, setTab] = useState<Tab>("floor");
+  const [userInteracted, setUserInteracted] = useState(false);
+  const prefersReducedMotion = useRef(
+    typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+
+  useEffect(() => {
+    if (userInteracted || prefersReducedMotion.current) return;
+    const id = setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      setTab((t) => TABS[(TABS.indexOf(t) + 1) % TABS.length]);
+    }, ROTATION_MS);
+    return () => clearInterval(id);
+  }, [userInteracted]);
+
+  const handleTabClick = (t: Tab) => {
+    setTab(t);
+    setUserInteracted(true);
+  };
+
+  const isAutoRotating = !userInteracted && !prefersReducedMotion.current;
 
   const alarmCount = machines.filter((m) => m.status === "ALARM").length;
 
@@ -57,19 +80,31 @@ export default function LiveDashboardSection() {
           <FloorStats />
 
           {/* tabs */}
-          <div className="view-tabs">
-            <button className={`view-tab ${tab === "floor" ? "on" : ""}`} onClick={() => setTab("floor")}>
+          <div className={`view-tabs${isAutoRotating ? " auto-rotating" : ""}`}>
+            <button className={`view-tab ${tab === "floor" ? "on" : ""}`} onClick={() => handleTabClick("floor")}>
               <i>⚙</i> Floor View
+              {isAutoRotating && tab === "floor" && (
+                <span key={"progress-floor"} className="progress-bar" style={{ animationDuration: `${ROTATION_MS}ms` }} />
+              )}
             </button>
-            <button className={`view-tab ${tab === "ai" ? "on" : ""}`} onClick={() => setTab("ai")}>
+            <button className={`view-tab ${tab === "ai" ? "on" : ""}`} onClick={() => handleTabClick("ai")}>
               <i>✦</i> AI Insights
+              {isAutoRotating && tab === "ai" && (
+                <span key={"progress-ai"} className="progress-bar" style={{ animationDuration: `${ROTATION_MS}ms` }} />
+              )}
             </button>
-            <button className={`view-tab ${tab === "trends" ? "on" : ""}`} onClick={() => setTab("trends")}>
+            <button className={`view-tab ${tab === "trends" ? "on" : ""}`} onClick={() => handleTabClick("trends")}>
               <i>↗</i> Trends
+              {isAutoRotating && tab === "trends" && (
+                <span key={"progress-trends"} className="progress-bar" style={{ animationDuration: `${ROTATION_MS}ms` }} />
+              )}
             </button>
-            <button className={`view-tab ${tab === "alerts" ? "on" : ""}`} onClick={() => setTab("alerts")}>
+            <button className={`view-tab ${tab === "alerts" ? "on" : ""}`} onClick={() => handleTabClick("alerts")}>
               <i>⚠</i> Alerts
               {alarmCount > 0 && <span className="badge">{alarmCount}</span>}
+              {isAutoRotating && tab === "alerts" && (
+                <span key={"progress-alerts"} className="progress-bar" style={{ animationDuration: `${ROTATION_MS}ms` }} />
+              )}
             </button>
           </div>
 

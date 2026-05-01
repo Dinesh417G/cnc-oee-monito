@@ -44,6 +44,13 @@ body { font-family: var(--font-sans); color: #0b1220; background: #fff; -webkit-
 }
 .view-tab i { width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center; font-style: normal; font-size: 11px; }
 .view-tab .badge { background: var(--red); color: #fff; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 8px; font-family: var(--font-mono); letter-spacing: .04em; }
+.view-tabs.auto-rotating .view-tab.on::after { display: none; }
+.progress-bar {
+  position: absolute; left: 0; bottom: -1px; height: 2px; width: 100%;
+  background: var(--primary); transform: scaleX(0); transform-origin: left;
+  animation: tabProgress linear forwards;
+}
+@keyframes tabProgress { to { transform: scaleX(1); } }
 
 /* ── AI Insights ──────────────────────────────────────────────────────────── */
 .ai-screen { display: grid; grid-template-columns: 240px 1fr; background: #fafbfd; min-height: 560px; }
